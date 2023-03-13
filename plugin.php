@@ -1,6 +1,5 @@
 <?php
-require 'mailjet-apiv3/vendor/autoload.php';
-
+require 'vendor/autoload.php';
 use \Mailjet\Resources;
 
 /*
