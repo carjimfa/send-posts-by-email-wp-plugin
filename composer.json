@@ -1,5 +1,10 @@
 {
+    "config": {
+        "platform": {
+            "php": "7.4.33"
+        }
+    },
     "require": {
-        "mailjet/mailjet-apiv3-php": "^1.5"
+        "phpmailer/phpmailer": "^6.8"
     }
 }

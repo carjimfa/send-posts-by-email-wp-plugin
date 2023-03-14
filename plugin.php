@@ -1,12 +1,16 @@
 <?php
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
+use PHPMailer\PHPMailer\Exception;
+
+//Load Composer's autoloader
 require 'vendor/autoload.php';
-use \Mailjet\Resources;
 
 /*
 Plugin Name:	Send new post by email
 Plugin URI:		https://drapergiggs.com
 Description:	Send new posts by email to a mailing list in mailjet.
-Version:		0.0.20
+Version:		0.0.24
 Author:			Carlos Draper Giggs
 Author URI:		https://drapergiggs.com
 License:		GPL-2.0+
@@ -51,16 +55,25 @@ function settings_init() {
 		'page_setting_section'
 	 );
 
-	 add_settings_field(
-		'account-secret',
-		__('Mailjet Account Secret', 'posts-by-email' ),
-		'account_token_settings_markup',
-		'posts-by-email',
-		'page_setting_section'
-	 );
+    add_settings_field(
+        'account-secret',
+        __('Mailjet Account Secret', 'posts-by-email' ),
+        'account_token_settings_markup',
+        'posts-by-email',
+        'page_setting_section'
+    );
+
+    add_settings_field(
+        'mailing_list_id',
+        __('Mailing list Id', 'posts-by-email' ),
+        'mailing_list_id_settings_markup',
+        'posts-by-email',
+        'page_setting_section'
+    );
 
 	 register_setting('posts-by-email', 'account-sid');
 	 register_setting('posts-by-email', 'account-secret');
+	 register_setting('posts-by-email', 'mailing_list_id');
 }
 
 function section_callback_function() {
@@ -94,41 +107,49 @@ function account_token_settings_markup() {
     <?php
 }
 
+function mailing_list_id_settings_markup() {
+    ?>
+    <label for="mailing_list_id"><?php _e('Account secret', 'mailing_list_id'); ?></label>
+    <input type="text" id="mailing_list_id" name="mailing_list_id" value="<?php echo get_option('mailing_list_id'); ?>">
+    <?php
+}
+
 
 // SECTION: HOOK FOR NEW POSTS
 add_action('transition_post_status', 'send_new_post', 10, 3);
 
 function send_new_post($new_status, $old_status, $post) {
-	if('publish' === $new_status && 'publish' !== $old_status && $post->post_type === 'post') {
+// 	if('publish' === $new_status && 'publish' !== $old_status && $post->post_type === 'post') {
 		send_post_by_email($post);
-	}
+// 	}
 }
+
 function send_post_by_email($post) {
-	$mj = new \Mailjet\Client(get_option('account-sid' ), get_option('account-secret' ), true, ['version' => 'v3.1']);
+    $mail = new PHPMailer();
 
 	$subject = $post->post_title;
 	$content = $post->post_content;
+	$mailingListId = get_option('mailing_list_id');
+	$username = get_option('account-sid');
+	$password = get_option('account-secret');
 
-	// TODO: Send post to a Mailjet Mailing list
+    $mail->isSMTP();                                            //Send using SMTP
+    $mail->Host       = 'in-v3.mailjet.com';                     //Set the SMTP server to send through
+    $mail->SMTPAuth   = true;                                   //Enable SMTP authentication
+    $mail->Username   = $username;                     //SMTP username
+    $mail->Password   = $password;                               //SMTP password
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;            //Enable implicit TLS encryption
+    $mail->Port       = 587;                                    //TCP port to connect to; use 587 if you have set `SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS`
 
-	$body = [
-		'Messages' => [
-			[
-				'From' => [
-					'Email' => "carlos@dunkelheitdraper.com",
-					'Name' => "Me"
-				],
-				'To' => [
-					[
-						'Email' => "carjimfa@gmail.com",
-						'Name' => "You"
-					]
-				],
-				'Subject' => "$subject",
-				'HTMLPart' => "$content"
-			]
-		]
-	];
+    //Recipients
+    $mail->setFrom('carlos@dunkelheitdraper.com', 'Carlos Draper Giggs');
+    $mail->addAddress($mailingListId);     //Add a recipient
+    $mail->addReplyTo('carlos@dunkelheitdraper.com', 'Carlos Draper Giggs');
 
-	$response = $mj->post(Resources::$Email, ['body' => $body]);
+    //Content
+    $mail->isHTML(true);
+    $mail->Subject = $subject;
+    $mail->Body = $content;
+
+    $mail->send();
 }
